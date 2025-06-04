@@ -12,4 +12,4 @@ Die Datei data.csv enthält die gemessenen Leistungsdaten. Diese werden mit der 
 
 Nun kann man die Streamlit-App im Browser aufrufen und diese schaut so aus:
 
-![alt text](<picture\Screenshot.png>)
+![alt text](picture/Screenshot.png)
