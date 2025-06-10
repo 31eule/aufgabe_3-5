@@ -43,35 +43,31 @@ class Person:
             return {}
         
     def __init__(self, person_dict) -> None:
-        self.date_of_birth = person_dict["date_of_birth"]
+        self.id = person_dict["id"]
         self.firstname = person_dict["firstname"]
         self.lastname = person_dict["lastname"]
-        self.picture_path = person_dict["picture_path"]
-        self.id = person_dict["id"]
-    @staticmethod
-    def load_by_id(id, person_data):
-        for eintrag in person_data:
-                if (eintrag["id"] == id):
-
-                    return eintrag
-                
-                else:
-                    return{}
-    
-    def calc_age(self, person_dict):
         self.date_of_birth = person_dict["date_of_birth"]
-        today = date.today().year
-        age = today - self.date_of_birth
-        return age
+        self.picture_path = person_dict.get("picture_path", "data/pictures/none.jpg")
+        self.gender = person_dict.get("gender", "unknown")
+        self.ekg_tests = person_dict.get("ekg_tests", [])
 
-    def calc_max_heart_rate(self, person_dict, age):
-        self.gender = person_dict["gender"]
+    @staticmethod
+    def load_by_id(pid, person_dict):
+        for person_data in person_dict:
+            if str(person_data["id"]) == str(pid):  # Vergleich als String für Sicherheit
+                return Person(person_data)
+        return None
+    
+    def calc_age(self):
+        today_year = date.today().year
+        return today_year - self.date_of_birth
+
+    def calc_max_heart_rate(self):
+        age = self.calc_age()
         if self.gender == "male":
             max_heart = 223 - 0.9 * age
-            print(max_heart)
         else:
             max_heart = 226 - age
-
         return max_heart
 
 if __name__ == "__main__":

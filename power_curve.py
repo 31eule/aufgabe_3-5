@@ -6,31 +6,27 @@ pio.renderers.default = "browser"
 
 def load_activity_data(path: str) -> pd.DataFrame:
     df = pd.read_csv(path)
-
-    df["Time"] = np.arange(len(df))
-
+    df["Time"] = np.arange(len(df))  # 1 Hz: jede Zeile = 1 Sekunde
     return df
 
-def create_powercurve(df, windows_sizes):
-    power_values = []
-    for window in windows_sizes:
-        power = find_best_effort(df, window)
-        power_values.append(power)
-
-    return power_values
-
-def find_best_effort(series, windows_size):
-    rolling_power = series.rolling(window=windows_size).mean()
+def find_best_effort(series, window_size):
+    rolling_power = series.rolling(window=window_size).mean()
     best_effort = rolling_power.max()
-
     return best_effort
 
-def plot_powercurve(time, power_values):
-    df_new = pd.DataFrame({'Time' : time, 'Power' : power_values})
+def create_powercurve(series, durations_seconds):
+    power_values = []
+    for duration in durations_seconds:
+        power = find_best_effort(series, duration)  # 1 Sample = 1 Sekunde
+        power_values.append(power)
+    return power_values
+
+def plot_powercurve(durations_seconds, power_values):
+    df_new = pd.DataFrame({'Duration (s)' : durations_seconds, 'Power (W)' : power_values})
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=df_new["Time"],
-        y=df_new["Power"],
+        x=df_new["Duration (s)"],
+        y=df_new["Power (W)"],
         mode="lines+markers",
         name="Best Effort Power",
         line=dict(color="blue", width=2),
@@ -38,22 +34,21 @@ def plot_powercurve(time, power_values):
     ))
     fig.update_layout(
         title="Power Curve",
-        xaxis_title="Time (seconds)",
+        xaxis_title="Zeit (Sekunden)",
         yaxis_title="Power (Watts)",
         xaxis=dict(tickmode='linear', dtick=300),
-        yaxis=dict(range=[150, max(power_values) * 1.1]),
+        yaxis=dict(range=[min(power_values) * 0.9, max(power_values) * 1.1]),
         template="plotly_white"
     )
-
     fig.show()
     return fig
-
 
 if __name__ == "__main__":
     df = load_activity_data("data/activities/activity.csv")
     series = pd.Series(df["PowerOriginal"])
-    windows_size = 300
-    watts300 = find_best_effort(series, windows_size)
-    windows_sizes = [5, 50, 150, 300, 500, 700, 900, 1200, 1500, 1800]
-    watts = create_powercurve(series, windows_sizes)
-    print(plot_powercurve(windows_sizes, watts))
+
+    # Diese Werte sind sowohl in Sekunden als auch in Samples gültig, da 1Hz
+    durations_seconds = [5, 30, 60, 120, 300, 600, 900, 1200, 1500, 1800]
+
+    watts = create_powercurve(series, durations_seconds)
+    plot_powercurve(durations_seconds, watts)

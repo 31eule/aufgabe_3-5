@@ -15,23 +15,22 @@ class EKGdata:
 ## Konstruktor der Klasse soll die Daten einlesen
 
     def __init__(self, ekg_dict):
-        #pass
+        self.ekg_dict = ekg_dict
         self.id = ekg_dict["id"]
         self.date = ekg_dict["date"]
         self.data = ekg_dict["result_link"]
         self.df = pd.read_csv(self.data, sep='\t', header=None, names=['Messwerte in mV','Zeit in ms',])
     
     @staticmethod
-    def load_by_id(ekg_list, search_id):
-        for eintrag in ekg_list:
-                if (eintrag["id"] == search_id):
-                    return eintrag
-                
-                else:
-                    return{}
+    def load_by_id(ekg_list, target_id):
+        for ekg in ekg_list:
+            if int(ekg["id"]) == int(target_id):  # <- sicherer Vergleich
+                return ekg
+        return None
+
     
     
-    def find_peaks(self, ekg_dictioanry, threshold, respacing_factor=5):
+    def find_peaks(self, threshold, respacing_factor=5):
         """
         A function to find the peaks in a series
         Args:
@@ -42,8 +41,6 @@ class EKGdata:
             - peaks (list): A list of the indices of the peaks
         """
         # Respace the series
-        self.data = ekg_dictioanry["result_link"]
-        self.df = pd.read_csv(self.data, sep='\t', header=None, names=['Messwerte in mV','Zeit in ms',])
         series_df = self.df["Messwerte in mV"]
 
         series = series_df.iloc[::respacing_factor]
@@ -67,22 +64,15 @@ class EKGdata:
 
         return peaks
 
+    @staticmethod
     def estimate_hr(peaks):
-
         if len(peaks) < 2:
             return 0  # Nicht genug Daten für Berechnung
-    
+
         rr_intervals_ms = [peaks[i+1] - peaks[i] for i in range(len(peaks)-1)]
-
-        # Mittelwert der RR-Intervalle in Millisekunden
         mean_rr_ms = sum(rr_intervals_ms) / len(rr_intervals_ms)
-
-        # Umrechnung in Sekunden
         mean_rr_sec = mean_rr_ms / 1000.0
-
-        # Herzfrequenz berechnen (60 Sekunden / mittleres RR-Intervall in Sekunden)
         hr = 60 / mean_rr_sec
-
         return hr
     
     def plot_time_series(self, peaks):
@@ -111,7 +101,6 @@ class EKGdata:
             yaxis_title='Messwerte in mV',
             template='plotly_white'
         )
-        fig.show()
         return fig
     
         

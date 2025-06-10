@@ -1,63 +1,113 @@
 import streamlit as st
-import read_data 
-import pandas as pd
+import read_data
 import read_pandas
+import pandas as pd
 from PIL import Image
-
 from person import Person
 from ekgdata import EKGdata
-
 
 st.write("# EKG Data Analysis")
 st.write("## Patient/in auswählen")
 
-if 'current_user' not in st.session_state:
-    st.session_state.current_user = 'None'
-
 person_dict = Person.load_person_data()
 person_names = Person.get_person_list(person_dict)
+person_ids = [p["id"] for p in person_dict]
 
-person_id = st.text_input("Personen-ID eingeben:")
+def get_id_by_name(name):
+    for person in person_dict:
+        if f"{person['lastname']}, {person['firstname']}" == name:
+            return person["id"]
+    return None
 
-# Personendaten anhand der ID laden und anzeigen
-if person_id:
-    all_persons = Person.load_person_data()
-    person_data_by_id = Person.load_by_id(person_id, all_persons)
-    if person_data_by_id:
-        st.markdown("**Personendaten (per ID):**")
-        st.json(person_data_by_id)
-        # Optional: Instanz erzeugen und weitere Infos anzeigen
-        person_by_id = Person(person_data_by_id)
-        age_by_id = person_by_id.calc_age(person_by_id)
-        st.markdown(f"**Alter:** {age_by_id} Jahre")
-    else:
-         st.warning("Keine Person mit dieser ID gefunden.")
+def get_name_by_id(pid):
+    for person in person_dict:
+        if person["id"] == pid:
+            return f"{person['lastname']}, {person['firstname']}"
+    return None
 
-st.session_state.current_user = st.selectbox(
-    'Patient/in',
-    options = person_names, key="sbPatient")
+def sync_name():
+    st.session_state.current_id = get_id_by_name(st.session_state.current_user)
 
-# Anlegen des Session State. Bild, wenn es kein Bild gibt
-if 'picture_path' not in st.session_state:
-    st.session_state.picture_path = 'data/pictures/none.jpg'
+def sync_id():
+    st.session_state.current_user = get_name_by_id(st.session_state.current_id)
 
-# Suche den Pfad zum Bild, aber nur wenn der Name bekannt ist
-if st.session_state.current_user in person_names:
-    st.session_state.picture_path = Person.find_person_data_by_name(st.session_state.current_user)["picture_path"]
-    
-# Öffne das Bild und Zeige es an
-image = Image.open(st.session_state.picture_path)
-st.image(image, caption=st.session_state.current_user)
+if 'current_user' not in st.session_state:
+    st.session_state.current_user = person_names[0]
+if 'current_id' not in st.session_state:
+    st.session_state.current_id = person_ids[0]
 
-if st.session_state.current_user in person_names:
-    person_data = Person.find_person_data_by_name(st.session_state.current_user)
-    person = Person(person_data)
-    age = person.calc_age(person_data)
+col1, col2 = st.columns(2)
+with col1:
+    st.selectbox(
+        "Patient/in",
+        options=person_names,
+        index=person_names.index(st.session_state.current_user),
+        key="current_user",
+        on_change=sync_name
+    )
+with col2:
+    st.selectbox(
+        "Personen-ID auswählen",
+        options=person_ids,
+        index=person_ids.index(st.session_state.current_id),
+        key="current_id",
+        on_change=sync_id
+    )
+
+person = Person.load_by_id(st.session_state.current_id, person_dict)
+
+if person:
+    try:
+        image = Image.open(person.picture_path)
+    except FileNotFoundError:
+        image = Image.open("data/pictures/none.jpg")
+    st.image(image, caption=f"{person.lastname}, {person.firstname}")
+
+    age = person.calc_age()
+    max_hr = person.calc_max_heart_rate()
     st.markdown(f"**Alter:** {age} Jahre")
-    heartrate = person.calc_max_heart_rate(person_data, age)
-    st.markdown(f"**Maximale Herzfrquenz:** {heartrate} bpm")
+    st.markdown(f"**Maximale Herzfrequenz:** {max_hr:.1f} bpm")
 
+    if person.ekg_tests:
+        ekg_ids = [ekg["id"] for ekg in person.ekg_tests]
 
+        # INITIALISIERE selected_ekg_index nur, wenn Person gewechselt hat oder nicht existiert
+        if ('current_person_id_for_ekg' not in st.session_state or
+            st.session_state.current_person_id_for_ekg != person.id or
+            'selected_ekg_index' not in st.session_state):
+            st.session_state.current_person_id_for_ekg = person.id
+            st.session_state.selected_ekg_index = 0
+
+        # Erstelle die Selectbox, ohne den Session State danach zu überschreiben
+        selected_index = st.selectbox(
+            "EKG auswählen",
+            options=range(len(ekg_ids)),
+            index=st.session_state.selected_ekg_index,
+            format_func=lambda x: str(x + 1),
+            key="selected_ekg_index"
+        )
+
+        # Aktualisiere den Index nur, wenn sich die Auswahl ändert (wenn nötig)
+        if selected_index != st.session_state.selected_ekg_index:
+            st.session_state.selected_ekg_index = selected_index
+
+        selected_ekg_id = ekg_ids[selected_index]
+        ekg_dict = EKGdata.load_by_id(person.ekg_tests, selected_ekg_id)
+
+        if ekg_dict:
+            ekg = EKGdata(ekg_dict)
+            threshold = 340
+            peaks = ekg.find_peaks(threshold)
+            fig = ekg.plot_time_series(peaks)
+            st.plotly_chart(fig)
+            estimated_hr = ekg.estimate_hr(peaks)
+            st.markdown(f"**Geschätzte Herzfrequenz:** {estimated_hr:.1f} bpm")
+            st.markdown(f"**EKG-Datei:** {ekg_dict['result_link']}")
+        else:
+            st.warning("Kein EKG mit dieser ID gefunden.")
+    else:
+        st.warning("Keine EKG-Daten für diese Person vorhanden.")
+        
 #EKG-Plot einfügen
 df = read_pandas.read_my_csv()
 
@@ -89,3 +139,4 @@ df_zone_summary = pd.DataFrame(zone_data)
 
 # Index-Spalte entfernen
 st.table(df_zone_summary.set_index("Zone"))
+
