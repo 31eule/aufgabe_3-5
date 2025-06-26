@@ -71,7 +71,7 @@ class EKGdata:
 
         rr_intervals_ms = [peaks[i+1] - peaks[i] for i in range(len(peaks)-1)]
         mean_rr_ms = sum(rr_intervals_ms) / len(rr_intervals_ms)
-        mean_rr_sec = mean_rr_ms / 1000.0
+        mean_rr_sec = mean_rr_ms / 1000
         hr = 60 / mean_rr_sec
         return hr
     

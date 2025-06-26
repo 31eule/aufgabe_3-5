@@ -47,7 +47,6 @@ if __name__ == "__main__":
     df = load_activity_data("data/activities/activity.csv")
     series = pd.Series(df["PowerOriginal"])
 
-    # Diese Werte sind sowohl in Sekunden als auch in Samples gültig, da 1Hz
     durations_seconds = [5, 30, 60, 120, 300, 600, 900, 1200, 1500, 1800]
 
     watts = create_powercurve(series, durations_seconds)

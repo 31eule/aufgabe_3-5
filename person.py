@@ -73,6 +73,7 @@ class Person:
 if __name__ == "__main__":
     #print("This is a module with some functions to read the person data")
     persons = Person.load_person_data()
+    print(persons)
     person_names = Person.get_person_list(persons)
     #print(person_names)
     print(Person.find_person_data_by_name("Huber, Julian"))
@@ -81,5 +82,5 @@ if __name__ == "__main__":
     person = Person.load_by_id(id, persons)
     #print (Person.calc_age(Person, person))
     age = Person.calc_age(Person, person)
-    print(age)
-    print(Person.calc_max_heart_rate(Person, person, age))
+    #print(age)
+    #print(Person.calc_max_heart_rate(Person, person, age))
